@@ -1,0 +1,67 @@
+package com.wam.cricnets_ai.service;
+
+import com.wam.cricnets_ai.model.BallType;
+import com.wam.cricnets_ai.model.Booking;
+import com.wam.cricnets_ai.repository.BookingRepository;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+public class BookingService {
+
+    private final BookingRepository bookingRepository;
+
+    public BookingService(BookingRepository bookingRepository) {
+        this.bookingRepository = bookingRepository;
+    }
+
+    public Booking createBooking(LocalDateTime startTime, BallType ballType, String playerName) {
+        validateBookingTime(startTime);
+        LocalDateTime endTime = startTime.plusMinutes(30);
+
+        List<Booking> overlapping = bookingRepository.findOverlappingBookings(startTime, endTime);
+        if (!overlapping.isEmpty()) {
+            throw new RuntimeException("Session is already booked or unavailable.");
+        }
+
+        Booking booking = new Booking(startTime, endTime, ballType, playerName);
+        return bookingRepository.save(booking);
+    }
+
+    private void validateBookingTime(LocalDateTime startTime) {
+        LocalTime time = startTime.toLocalTime();
+        if (time.isBefore(LocalTime.of(7, 0)) || time.isAfter(LocalTime.of(22, 30))) {
+            throw new IllegalArgumentException("Bookings are only available from 7:00 AM to 11:00 PM.");
+        }
+        if (startTime.getMinute() != 0 && startTime.getMinute() != 30) {
+            throw new IllegalArgumentException("Bookings must be in 30-minute slots (e.g., 7:00 or 7:30).");
+        }
+    }
+
+    public List<SlotStatus> getSlotsForDay(LocalDate date) {
+        LocalDateTime dayStart = date.atTime(7, 0);
+        LocalDateTime dayEnd = date.atTime(23, 0);
+        List<Booking> bookings = bookingRepository.findBookingsByDay(dayStart, dayEnd);
+
+        List<SlotStatus> slots = new ArrayList<>();
+        LocalDateTime current = dayStart;
+        while (current.isBefore(dayEnd)) {
+            LocalDateTime slotStart = current;
+            LocalDateTime slotEnd = current.plusMinutes(30);
+            boolean isBooked = bookings.stream().anyMatch(b -> 
+                b.getStartTime().isBefore(slotEnd) && b.getEndTime().isAfter(slotStart));
+            
+            slots.add(new SlotStatus(slotStart, isBooked ? "Booked" : "Available"));
+            current = slotEnd;
+        }
+        return slots;
+    }
+
+    public record SlotStatus(LocalDateTime startTime, String status) {}
+}
