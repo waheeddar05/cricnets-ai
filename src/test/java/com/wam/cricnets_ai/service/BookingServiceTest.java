@@ -93,4 +93,46 @@ class BookingServiceTest {
                 .findFirst().orElseThrow();
         assertEquals("Available", sevenAM.status());
     }
+
+    @Test
+    void testGetAllBookings() {
+        when(bookingRepository.findAll()).thenReturn(List.of(new Booking(), new Booking()));
+        List<Booking> bookings = bookingService.getAllBookings();
+        assertEquals(2, bookings.size());
+    }
+
+    @Test
+    void testGetBookingById_Found() {
+        Booking booking = new Booking();
+        booking.setId(1L);
+        when(bookingRepository.findById(1L)).thenReturn(java.util.Optional.of(booking));
+        Booking result = bookingService.getBookingById(1L);
+        assertEquals(1L, result.getId());
+    }
+
+    @Test
+    void testGetBookingById_NotFound() {
+        when(bookingRepository.findById(1L)).thenReturn(java.util.Optional.empty());
+        assertThrows(RuntimeException.class, () -> bookingService.getBookingById(1L));
+    }
+
+    @Test
+    void testCancelBooking_Success() {
+        when(bookingRepository.existsById(1L)).thenReturn(true);
+        bookingService.cancelBooking(1L);
+        verify(bookingRepository).deleteById(1L);
+    }
+
+    @Test
+    void testCancelBooking_NotFound() {
+        when(bookingRepository.existsById(1L)).thenReturn(false);
+        assertThrows(RuntimeException.class, () -> bookingService.cancelBooking(1L));
+    }
+
+    @Test
+    void testGetBookingsByPlayer() {
+        when(bookingRepository.findByPlayerNameIgnoreCase("John")).thenReturn(List.of(new Booking()));
+        List<Booking> results = bookingService.getBookingsByPlayer("John");
+        assertEquals(1, results.size());
+    }
 }

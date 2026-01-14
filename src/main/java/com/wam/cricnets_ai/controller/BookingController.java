@@ -31,5 +31,30 @@ public class BookingController {
         return bookingService.createBooking(request.startTime(), request.ballType(), request.playerName());
     }
 
+    @GetMapping
+    public List<Booking> getAllBookings() {
+        return bookingService.getAllBookings();
+    }
+
+    @GetMapping("/{id}")
+    public Booking getBooking(@PathVariable Long id) {
+        return bookingService.getBookingById(id);
+    }
+
+    @DeleteMapping("/{id}")
+    public void cancelBooking(@PathVariable Long id) {
+        bookingService.cancelBooking(id);
+    }
+
+    @GetMapping("/player/{playerName}")
+    public List<Booking> getPlayerBookings(@PathVariable String playerName) {
+        return bookingService.getBookingsByPlayer(playerName);
+    }
+
+    @GetMapping("/upcoming")
+    public List<Booking> getUpcomingBookings() {
+        return bookingService.getUpcomingBookings();
+    }
+
     public record BookingRequest(LocalDateTime startTime, BallType ballType, String playerName) {}
 }

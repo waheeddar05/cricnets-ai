@@ -63,5 +63,29 @@ public class BookingService {
         return slots;
     }
 
+    public List<Booking> getAllBookings() {
+        return bookingRepository.findAll();
+    }
+
+    public Booking getBookingById(Long id) {
+        return bookingRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Booking not found with id: " + id));
+    }
+
+    public void cancelBooking(Long id) {
+        if (!bookingRepository.existsById(id)) {
+            throw new RuntimeException("Booking not found with id: " + id);
+        }
+        bookingRepository.deleteById(id);
+    }
+
+    public List<Booking> getBookingsByPlayer(String playerName) {
+        return bookingRepository.findByPlayerNameIgnoreCase(playerName);
+    }
+
+    public List<Booking> getUpcomingBookings() {
+        return bookingRepository.findByStartTimeAfterOrderByStartTimeAsc(LocalDateTime.now());
+    }
+
     public record SlotStatus(LocalDateTime startTime, String status) {}
 }
