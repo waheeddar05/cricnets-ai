@@ -35,6 +35,9 @@ public class BookingService {
     }
 
     private void validateBookingTime(LocalDateTime startTime) {
+        if (startTime.isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Cannot book a session in the past.");
+        }
         LocalTime time = startTime.toLocalTime();
         if (time.isBefore(LocalTime.of(7, 0)) || time.isAfter(LocalTime.of(22, 30))) {
             throw new IllegalArgumentException("Bookings are only available from 7:00 AM to 11:00 PM.");
@@ -51,13 +54,21 @@ public class BookingService {
 
         List<SlotStatus> slots = new ArrayList<>();
         LocalDateTime current = dayStart;
+        LocalDateTime now = LocalDateTime.now();
         while (current.isBefore(dayEnd)) {
             LocalDateTime slotStart = current;
             LocalDateTime slotEnd = current.plusMinutes(30);
-            boolean isBooked = bookings.stream().anyMatch(b -> 
-                b.getStartTime().isBefore(slotEnd) && b.getEndTime().isAfter(slotStart));
             
-            slots.add(new SlotStatus(slotStart, isBooked ? "Booked" : "Available"));
+            String status;
+            if (slotStart.isBefore(now)) {
+                status = "Unavailable";
+            } else {
+                boolean isBooked = bookings.stream().anyMatch(b -> 
+                    b.getStartTime().isBefore(slotEnd) && b.getEndTime().isAfter(slotStart));
+                status = isBooked ? "Booked" : "Available";
+            }
+            
+            slots.add(new SlotStatus(slotStart, status));
             current = slotEnd;
         }
         return slots;

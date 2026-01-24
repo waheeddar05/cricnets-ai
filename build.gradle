@@ -30,9 +30,20 @@ dependencies {
 	implementation 'org.springframework.ai:spring-ai-starter-mcp-client'
 	implementation 'org.springframework.ai:spring-ai-starter-mcp-server-webmvc'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.1.0'
+
+	implementation 'org.springframework.ai:spring-ai-starter-model-google-genai'
+
+
+	// Redis Chat Memory for persistent conversations – NEW in 2.0
+//	implementation("org.springframework.ai:spring-ai-starter-model-chat-memory-repository-redis:${springAiVersion}")
+
+//	implementation("org.springframework.boot:spring-boot-starter-data-redis")
+
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
-	developmentOnly 'org.springframework.ai:spring-ai-spring-boot-docker-compose'
+	developmentOnly('org.springframework.ai:spring-ai-spring-boot-docker-compose') {
+		exclude group: 'org.springframework.boot', module: 'spring-boot-starter-mongodb'
+	}
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
