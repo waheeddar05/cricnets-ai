@@ -36,4 +36,17 @@ class ToolRegistryTest {
 
         Mockito.verify(bookingService).getSlotsForDay(date);
     }
+
+    @Test
+    void testCallToolWithGenericArgName() {
+        BookingService bookingService = Mockito.mock(BookingService.class);
+        BookingMcpTools bookingMcpTools = new BookingMcpTools(bookingService);
+        ToolRegistry registry = new ToolRegistry(bookingMcpTools);
+
+        LocalDate date = LocalDate.of(2026, 1, 25);
+        // "arg0" is a common default if -parameters is missing
+        registry.callTool("get_available_slots", Map.of("arg0", "2026-01-25"));
+
+        Mockito.verify(bookingService).getSlotsForDay(date);
+    }
 }

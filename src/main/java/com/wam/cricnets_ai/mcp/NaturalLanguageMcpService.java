@@ -12,6 +12,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -42,9 +43,8 @@ public class NaturalLanguageMcpService {
         StringBuilder sb = new StringBuilder();
         sb.append("You are a tool router. Choose the single best tool that satisfies the user's request.\n");
         sb.append("Current date and time: ").append(java.time.LocalDateTime.now()).append("\n");
-//        sb.append("Return STRICT JSON only with keys: tool (string), args (object). No extra text.\n");
-//        sb.append("If some parameters are unknown, set them to null. Prefer companyId if explicitly provided; otherwise use companyName if given.\n");
-//        sb.append("Tools available (name, description, params):\n");
+        sb.append("Return STRICT JSON only with keys: tool (string), args (object). No extra text.\n");
+        sb.append("Use the EXACT parameter names as defined in the tool description.\n");
         for (var t : tools) {
             sb.append("- ").append(t.name()).append(": ")
                     .append(t.description() == null ? "" : t.description()).append(" Params: ");
@@ -64,7 +64,14 @@ public class NaturalLanguageMcpService {
         Map<String, Object> parsed = parseJsonObject(rawJson);
         String tool = (String) parsed.getOrDefault("tool", "");
         Object argsObj = parsed.get("args");
-        Map<String, Object> args = argsObj instanceof Map<?, ?> m ? castToStringObjectMap(m) : new HashMap<>();
+        
+        // Use LinkedHashMap to preserve order of arguments if they come as such in JSON
+        Map<String, Object> args = new LinkedHashMap<>();
+        if (argsObj instanceof Map<?, ?> m) {
+            for (Map.Entry<?, ?> entry : m.entrySet()) {
+                args.put(String.valueOf(entry.getKey()), entry.getValue());
+            }
+        }
 
         RouteAndResult result = new RouteAndResult();
         result.tool = tool;

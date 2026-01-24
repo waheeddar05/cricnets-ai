@@ -40,8 +40,16 @@ public class ToolRegistry {
 
     private ToolSpec toSpec(McpTool ann, Method method) {
         List<ParamSpec> params = new ArrayList<>();
-        for (Parameter p : method.getParameters()) {
-            params.add(new ParamSpec(p.getName(), p.getType().getSimpleName()));
+        Parameter[] methodParams = method.getParameters();
+        for (int i = 0; i < methodParams.length; i++) {
+            Parameter p = methodParams[i];
+            String name = p.getName();
+            if (name.startsWith("arg")) {
+                // If we have generic names, try to provide a better one based on common patterns
+                // or just rely on the description to guide the AI if we can't do better.
+                // However, the best is to just tell the AI to use 'date' if it's a LocalDate etc.
+            }
+            params.add(new ParamSpec(name, p.getType().getSimpleName()));
         }
         return new ToolSpec(ann.name(), ann.description(), params);
     }
@@ -80,14 +88,25 @@ public class ToolRegistry {
     private Object[] resolveArguments(Method m, Map<String, Object> args) {
         Parameter[] params = m.getParameters();
         Object[] resolved = new Object[params.length];
+
+        // LinkedHashMap to maintain order if possible, though args is usually a HashMap
+        List<Object> argsList = new ArrayList<>(args.values());
+
         for (int i = 0; i < params.length; i++) {
             Parameter p = params[i];
-            String name = p.getName(); // requires -parameters for reliable names
+            String name = p.getName();
             Class<?> type = p.getType();
             Object raw = args.get(name);
+
             if (raw == null) {
-                // allow alternative lookup by lowercase or camel variations
-                raw = args.getOrDefault(name, args.getOrDefault(name.toLowerCase(Locale.ROOT), null));
+                // Try lowercase
+                raw = args.get(name.toLowerCase(Locale.ROOT));
+            }
+
+            if (raw == null && i < argsList.size()) {
+                // Fallback to positional matching if names didn't match and we have enough arguments
+                // This helps when -parameters is missing and we get arg0, arg1, etc.
+                raw = argsList.get(i);
             }
 
             resolved[i] = convert(raw, type);
