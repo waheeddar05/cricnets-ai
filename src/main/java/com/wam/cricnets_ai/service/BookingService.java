@@ -1,10 +1,17 @@
 package com.wam.cricnets_ai.service;
 
+import com.wam.cricnets_ai.config.BookingConfig;
 import com.wam.cricnets_ai.model.BallType;
 import com.wam.cricnets_ai.model.Booking;
+import com.wam.cricnets_ai.model.BookingLock;
+import com.wam.cricnets_ai.model.SystemConfig;
+import com.wam.cricnets_ai.repository.BookingLockRepository;
 import com.wam.cricnets_ai.repository.BookingRepository;
+import com.wam.cricnets_ai.repository.SystemConfigRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -16,16 +23,67 @@ import java.util.stream.Collectors;
 public class BookingService {
 
     private final BookingRepository bookingRepository;
+    private final BookingLockRepository bookingLockRepository;
+    private final SystemConfigRepository systemConfigRepository;
+    private final BookingConfig bookingConfig;
 
-    public BookingService(BookingRepository bookingRepository) {
+    public BookingService(BookingRepository bookingRepository, 
+                          BookingLockRepository bookingLockRepository, 
+                          SystemConfigRepository systemConfigRepository,
+                          BookingConfig bookingConfig) {
         this.bookingRepository = bookingRepository;
+        this.bookingLockRepository = bookingLockRepository;
+        this.systemConfigRepository = systemConfigRepository;
+        this.bookingConfig = bookingConfig;
     }
 
-    public Booking createBooking(LocalDateTime startTime, BallType ballType, String playerName) {
-        validateBookingTime(startTime);
-        LocalDateTime endTime = startTime.plusMinutes(30);
+    private int getSlotDuration() {
+        return systemConfigRepository.findByConfigKey("slot_duration_minutes")
+                .map(c -> Integer.parseInt(c.getConfigValue()))
+                .orElse(bookingConfig.getSlotDurationMinutes());
+    }
 
-        List<Booking> overlapping = bookingRepository.findOverlappingBookings(startTime, endTime);
+    private LocalTime getBusinessStart() {
+        return systemConfigRepository.findByConfigKey("business_hours_start")
+                .map(c -> LocalTime.parse(c.getConfigValue()))
+                .orElse(bookingConfig.getBusinessHours().getStart());
+    }
+
+    private LocalTime getBusinessEnd() {
+        return systemConfigRepository.findByConfigKey("business_hours_end")
+                .map(c -> LocalTime.parse(c.getConfigValue()))
+                .orElse(bookingConfig.getBusinessHours().getEnd());
+    }
+
+    @Transactional
+    public Booking createBooking(LocalDateTime startTime, Integer durationMinutes, BallType ballType, String playerName) {
+        int defaultDuration = getSlotDuration();
+        if (durationMinutes == null) {
+            durationMinutes = defaultDuration;
+        }
+        
+        validateBookingTime(startTime, durationMinutes);
+        LocalDateTime endTime = startTime.plusMinutes(durationMinutes);
+
+        // Separate locks for different machines or general nets
+        String lockId = "GENERAL_LOCK";
+        if (ballType == BallType.TENNIS_MACHINE) {
+            lockId = "TENNIS_MACHINE_LOCK";
+        } else if (ballType == BallType.LEATHER_MACHINE) {
+            lockId = "LEATHER_MACHINE_LOCK";
+        }
+        
+        final String finalLockId = lockId;
+        bookingLockRepository.findByResourceId(finalLockId)
+                .orElseGet(() -> {
+                    try {
+                        return bookingLockRepository.saveAndFlush(new BookingLock(finalLockId));
+                    } catch (Exception e) {
+                        return bookingLockRepository.findByResourceId(finalLockId).orElseThrow();
+                    }
+                });
+
+        List<Booking> overlapping = bookingRepository.findOverlappingBookings(startTime, endTime, ballType);
         if (!overlapping.isEmpty()) {
             throw new RuntimeException("Session is already booked or unavailable.");
         }
@@ -34,30 +92,53 @@ public class BookingService {
         return bookingRepository.save(booking);
     }
 
-    private void validateBookingTime(LocalDateTime startTime) {
+    // Overloaded for backward compatibility or simple cases
+    @Transactional
+    public Booking createBooking(LocalDateTime startTime, BallType ballType, String playerName) {
+        return createBooking(startTime, getSlotDuration(), ballType, playerName);
+    }
+
+    private void validateBookingTime(LocalDateTime startTime, int durationMinutes) {
         if (startTime.isBefore(LocalDateTime.now())) {
             throw new IllegalArgumentException("Cannot book a session in the past.");
         }
-        LocalTime time = startTime.toLocalTime();
-        if (time.isBefore(LocalTime.of(7, 0)) || time.isAfter(LocalTime.of(22, 30))) {
-            throw new IllegalArgumentException("Bookings are only available from 7:00 AM to 11:00 PM.");
+        
+        int slotDuration = getSlotDuration();
+        if (durationMinutes <= 0 || durationMinutes % slotDuration != 0) {
+            throw new IllegalArgumentException("Duration must be a multiple of " + slotDuration + " minutes.");
         }
-        if (startTime.getMinute() != 0 && startTime.getMinute() != 30) {
-            throw new IllegalArgumentException("Bookings must be in 30-minute slots (e.g., 7:00 or 7:30).");
+
+        LocalTime time = startTime.toLocalTime();
+        LocalTime endTime = time.plusMinutes(durationMinutes);
+        
+        LocalTime businessStart = getBusinessStart();
+        LocalTime businessEnd = getBusinessEnd();
+
+        if (time.isBefore(businessStart) || endTime.isAfter(businessEnd)) {
+            throw new IllegalArgumentException("Bookings are only available from " + businessStart + " to " + businessEnd + ".");
+        }
+
+        int totalMinutesSinceMidnight = startTime.getHour() * 60 + startTime.getMinute();
+        if (totalMinutesSinceMidnight % slotDuration != 0) {
+            throw new IllegalArgumentException("Bookings must align to " + slotDuration + "-minute boundaries.");
         }
     }
 
-    public List<SlotStatus> getSlotsForDay(LocalDate date) {
-        LocalDateTime dayStart = date.atTime(7, 0);
-        LocalDateTime dayEnd = date.atTime(23, 0);
-        List<Booking> bookings = bookingRepository.findBookingsByDay(dayStart, dayEnd);
+    public List<SlotStatus> getSlotsForDay(LocalDate date, BallType ballType) {
+        LocalTime businessStart = getBusinessStart();
+        LocalTime businessEnd = getBusinessEnd();
+        int slotDuration = getSlotDuration();
+
+        LocalDateTime dayStart = date.atTime(businessStart);
+        LocalDateTime dayEnd = date.atTime(businessEnd);
+        List<Booking> bookings = bookingRepository.findBookingsByDay(dayStart, dayEnd, ballType);
 
         List<SlotStatus> slots = new ArrayList<>();
         LocalDateTime current = dayStart;
         LocalDateTime now = LocalDateTime.now();
         while (current.isBefore(dayEnd)) {
             LocalDateTime slotStart = current;
-            LocalDateTime slotEnd = current.plusMinutes(30);
+            LocalDateTime slotEnd = current.plusMinutes(slotDuration);
             
             String status;
             if (slotStart.isBefore(now)) {
@@ -72,6 +153,42 @@ public class BookingService {
             current = slotEnd;
         }
         return slots;
+    }
+
+    @Transactional
+    public List<Booking> createMultiBooking(List<LocalDateTime> startTimes, BallType ballType, String playerName) {
+        if (startTimes == null || startTimes.isEmpty()) {
+            return List.of();
+        }
+
+        int slotDuration = getSlotDuration();
+        List<LocalDateTime> sortedStartTimes = startTimes.stream()
+                .sorted()
+                .toList();
+
+        List<Booking> createdBookings = new ArrayList<>();
+        if (sortedStartTimes.isEmpty()) return createdBookings;
+
+        LocalDateTime currentStart = sortedStartTimes.get(0);
+        int currentDuration = slotDuration;
+
+        for (int i = 1; i < sortedStartTimes.size(); i++) {
+            LocalDateTime nextStart = sortedStartTimes.get(i);
+            if (nextStart.equals(currentStart.plusMinutes(currentDuration))) {
+                // Contiguous
+                currentDuration += slotDuration;
+            } else {
+                // Not contiguous, save previous group
+                createdBookings.add(createBooking(currentStart, currentDuration, ballType, playerName));
+                // Start new group
+                currentStart = nextStart;
+                currentDuration = slotDuration;
+            }
+        }
+        // Save the last group
+        createdBookings.add(createBooking(currentStart, currentDuration, ballType, playerName));
+
+        return createdBookings;
     }
 
     public List<Booking> getAllBookings() {

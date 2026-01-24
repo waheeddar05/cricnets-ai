@@ -19,14 +19,22 @@ public class BookingMcpTools {
         this.bookingService = bookingService;
     }
 
-    @McpTool(name = "get_available_slots", description = "Get available cricket net booking slots for a specific date")
-    public List<BookingService.SlotStatus> getAvailableSlots(LocalDate date) {
-        return bookingService.getSlotsForDay(date);
+    @McpTool(name = "get_available_slots", description = "Get available cricket net booking slots for a specific date and ball type (TENNIS, LEATHER, TENNIS_MACHINE, LEATHER_MACHINE)")
+    public List<BookingService.SlotStatus> getAvailableSlots(LocalDate date, BallType ballType) {
+        if (ballType == null) {
+            ballType = BallType.TENNIS;
+        }
+        return bookingService.getSlotsForDay(date, ballType);
     }
 
     @McpTool(name = "book_session", description = "Book a cricket net session")
-    public Booking bookSession(LocalDateTime startTime, BallType ballType, String playerName) {
-        return bookingService.createBooking(startTime, ballType, playerName);
+    public Booking bookSession(LocalDateTime startTime, Integer durationMinutes, BallType ballType, String playerName) {
+        return bookingService.createBooking(startTime, durationMinutes, ballType, playerName);
+    }
+
+    @McpTool(name = "book_multiple_slots", description = "Book multiple cricket net sessions at once")
+    public List<Booking> bookMultipleSlots(List<LocalDateTime> startTimes, BallType ballType, String playerName) {
+        return bookingService.createMultiBooking(startTimes, ballType, playerName);
     }
 
     @McpTool(name = "get_player_bookings", description = "Get all bookings for a specific player")

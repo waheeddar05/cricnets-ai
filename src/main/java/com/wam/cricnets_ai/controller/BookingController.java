@@ -12,6 +12,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/bookings")
+@CrossOrigin(origins = "http://localhost:3000")
 public class BookingController {
 
     private final BookingService bookingService;
@@ -22,13 +23,19 @@ public class BookingController {
 
     @GetMapping("/slots")
     public List<BookingService.SlotStatus> getSlots(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return bookingService.getSlotsForDay(date);
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false, defaultValue = "TENNIS") BallType ballType) {
+        return bookingService.getSlotsForDay(date, ballType);
     }
 
     @PostMapping
     public Booking bookSession(@RequestBody BookingRequest request) {
-        return bookingService.createBooking(request.startTime(), request.ballType(), request.playerName());
+        return bookingService.createBooking(request.startTime(), request.durationMinutes(), request.ballType(), request.playerName());
+    }
+
+    @PostMapping("/multi")
+    public List<Booking> bookMultipleSessions(@RequestBody MultiBookingRequest request) {
+        return bookingService.createMultiBooking(request.startTimes(), request.ballType(), request.playerName());
     }
 
     @GetMapping
@@ -56,5 +63,6 @@ public class BookingController {
         return bookingService.getUpcomingBookings();
     }
 
-    public record BookingRequest(LocalDateTime startTime, BallType ballType, String playerName) {}
+    public record BookingRequest(LocalDateTime startTime, Integer durationMinutes, BallType ballType, String playerName) {}
+    public record MultiBookingRequest(List<LocalDateTime> startTimes, BallType ballType, String playerName) {}
 }
