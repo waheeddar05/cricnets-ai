@@ -1,0 +1,24 @@
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Build artifacts
+build/
+.gradle/
+out/
+
+# Local configuration
+.env
+.env.local
+*.log
+
+# Test files
+src/test/
+
+# Documentation
+*.md
+
+# Docker local
+compose.yaml
+docker-compose.yml

@@ -1,0 +1,10 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/actuator/health"
+healthcheckTimeout = 300
+startCommand = "java -jar -Dspring.profiles.active=prod -Dserver.port=$PORT app.jar"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
