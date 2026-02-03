@@ -1,6 +1,5 @@
 package com.wam.cricnets_ai;
 
-import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -15,7 +14,7 @@ public class SecurityConfig {
     @Order(0)
     SecurityFilterChain actuatorSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher(EndpointRequest.toAnyEndpoint())
+                .securityMatcher("/actuator/**")
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
 
