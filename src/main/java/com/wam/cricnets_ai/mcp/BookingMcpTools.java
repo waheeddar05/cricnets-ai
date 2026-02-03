@@ -28,18 +28,18 @@ public class BookingMcpTools {
     }
 
     @McpTool(name = "book_session", description = "Book a cricket net session")
-    public Booking bookSession(LocalDateTime startTime, Integer durationMinutes, BallType ballType, String playerName) {
-        return bookingService.createBooking(startTime, durationMinutes, ballType, playerName);
+    public Booking bookSession(LocalDateTime startTime, Integer durationMinutes, BallType ballType) {
+        return bookingService.createBooking(startTime, durationMinutes, ballType, null);
     }
 
     @McpTool(name = "book_multiple_slots", description = "Book multiple cricket net sessions at once")
-    public List<Booking> bookMultipleSlots(List<LocalDateTime> startTimes, BallType ballType, String playerName) {
-        return bookingService.createMultiBooking(startTimes, ballType, playerName);
+    public List<Booking> bookMultipleSlots(List<LocalDateTime> startTimes, BallType ballType) {
+        return bookingService.createMultiBooking(startTimes, ballType, null);
     }
 
-    @McpTool(name = "get_player_bookings", description = "Get all bookings for a specific player")
-    public List<Booking> getPlayerBookings(String playerName) {
-        return bookingService.getBookingsByPlayer(playerName);
+    @McpTool(name = "get_user_bookings", description = "Get all bookings for a specific user email")
+    public List<Booking> getUserBookings(String email) {
+        return bookingService.getBookingsByEmail(email);
     }
 
     @McpTool(name = "cancel_booking", description = "Cancel an existing cricket net booking by ID")

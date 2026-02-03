@@ -8,6 +8,8 @@ import com.wam.cricnets_ai.model.SystemConfig;
 import com.wam.cricnets_ai.repository.BookingLockRepository;
 import com.wam.cricnets_ai.repository.BookingRepository;
 import com.wam.cricnets_ai.repository.SystemConfigRepository;
+import com.wam.cricnets_ai.repository.UserRepository;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,15 +27,18 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final BookingLockRepository bookingLockRepository;
     private final SystemConfigRepository systemConfigRepository;
+    private final UserRepository userRepository;
     private final BookingConfig bookingConfig;
 
     public BookingService(BookingRepository bookingRepository, 
                           BookingLockRepository bookingLockRepository, 
                           SystemConfigRepository systemConfigRepository,
+                          UserRepository userRepository,
                           BookingConfig bookingConfig) {
         this.bookingRepository = bookingRepository;
         this.bookingLockRepository = bookingLockRepository;
         this.systemConfigRepository = systemConfigRepository;
+        this.userRepository = userRepository;
         this.bookingConfig = bookingConfig;
     }
 
@@ -56,7 +61,7 @@ public class BookingService {
     }
 
     @Transactional
-    public Booking createBooking(LocalDateTime startTime, Integer durationMinutes, BallType ballType, String playerName) {
+    public Booking createBooking(LocalDateTime startTime, Integer durationMinutes, BallType ballType, String userEmail) {
         int defaultDuration = getSlotDuration();
         if (durationMinutes == null) {
             durationMinutes = defaultDuration;
@@ -88,14 +93,14 @@ public class BookingService {
             throw new RuntimeException("Session is already booked or unavailable.");
         }
 
-        Booking booking = new Booking(startTime, endTime, ballType, playerName);
+        Booking booking = new Booking(startTime, endTime, ballType, userEmail);
         return bookingRepository.save(booking);
     }
 
     // Overloaded for backward compatibility or simple cases
     @Transactional
-    public Booking createBooking(LocalDateTime startTime, BallType ballType, String playerName) {
-        return createBooking(startTime, getSlotDuration(), ballType, playerName);
+    public Booking createBooking(LocalDateTime startTime, BallType ballType, String userEmail) {
+        return createBooking(startTime, getSlotDuration(), ballType, userEmail);
     }
 
     private void validateBookingTime(LocalDateTime startTime, int durationMinutes) {
@@ -141,22 +146,25 @@ public class BookingService {
             LocalDateTime slotEnd = current.plusMinutes(slotDuration);
             
             String status;
+            boolean available;
             if (slotStart.isBefore(now)) {
                 status = "Unavailable";
+                available = false;
             } else {
                 boolean isBooked = bookings.stream().anyMatch(b -> 
                     b.getStartTime().isBefore(slotEnd) && b.getEndTime().isAfter(slotStart));
                 status = isBooked ? "Booked" : "Available";
+                available = !isBooked;
             }
             
-            slots.add(new SlotStatus(slotStart, status));
+            slots.add(new SlotStatus(slotStart, status, available));
             current = slotEnd;
         }
         return slots;
     }
 
     @Transactional
-    public List<Booking> createMultiBooking(List<LocalDateTime> startTimes, BallType ballType, String playerName) {
+    public List<Booking> createMultiBooking(List<LocalDateTime> startTimes, BallType ballType, String userEmail) {
         if (startTimes == null || startTimes.isEmpty()) {
             return List.of();
         }
@@ -179,18 +187,19 @@ public class BookingService {
                 currentDuration += slotDuration;
             } else {
                 // Not contiguous, save previous group
-                createdBookings.add(createBooking(currentStart, currentDuration, ballType, playerName));
+                createdBookings.add(createBooking(currentStart, currentDuration, ballType, userEmail));
                 // Start new group
                 currentStart = nextStart;
                 currentDuration = slotDuration;
             }
         }
         // Save the last group
-        createdBookings.add(createBooking(currentStart, currentDuration, ballType, playerName));
+        createdBookings.add(createBooking(currentStart, currentDuration, ballType, userEmail));
 
         return createdBookings;
     }
 
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     public List<Booking> getAllBookings() {
         return bookingRepository.findAll();
     }
@@ -200,6 +209,8 @@ public class BookingService {
                 .orElseThrow(() -> new RuntimeException("Booking not found with id: " + id));
     }
 
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN') or @bookingService.isBookingOwner(#id, principal)")
+    @Transactional
     public void cancelBooking(Long id) {
         if (!bookingRepository.existsById(id)) {
             throw new RuntimeException("Booking not found with id: " + id);
@@ -207,13 +218,21 @@ public class BookingService {
         bookingRepository.deleteById(id);
     }
 
-    public List<Booking> getBookingsByPlayer(String playerName) {
-        return bookingRepository.findByPlayerNameIgnoreCase(playerName);
+    public boolean isBookingOwner(Long id, java.security.Principal principal) {
+        if (principal == null) return false;
+        return bookingRepository.findById(id)
+                .map(b -> principal.getName().equals(b.getUserEmail()))
+                .orElse(false);
+    }
+
+
+    public List<Booking> getBookingsByEmail(String email) {
+        return bookingRepository.findByUserEmail(email);
     }
 
     public List<Booking> getUpcomingBookings() {
         return bookingRepository.findByStartTimeAfterOrderByStartTimeAsc(LocalDateTime.now());
     }
 
-    public record SlotStatus(LocalDateTime startTime, String status) {}
+    public record SlotStatus(LocalDateTime startTime, String status, boolean available) {}
 }

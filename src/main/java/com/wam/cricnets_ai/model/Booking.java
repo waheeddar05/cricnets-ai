@@ -23,16 +23,15 @@ public class Booking {
     @Column(nullable = false)
     private BallType ballType;
 
-    @Column(nullable = false)
-    private String playerName;
+    private String userEmail;
 
     public Booking() {}
 
-    public Booking(LocalDateTime startTime, LocalDateTime endTime, BallType ballType, String playerName) {
+    public Booking(LocalDateTime startTime, LocalDateTime endTime, BallType ballType, String userEmail) {
         this.startTime = startTime;
         this.endTime = endTime;
         this.ballType = ballType;
-        this.playerName = playerName;
+        this.userEmail = userEmail;
     }
 
     public Long getId() {
@@ -67,11 +66,11 @@ public class Booking {
         this.ballType = ballType;
     }
 
-    public String getPlayerName() {
-        return playerName;
+    public String getUserEmail() {
+        return userEmail;
     }
 
-    public void setPlayerName(String playerName) {
-        this.playerName = playerName;
+    public void setUserEmail(String userEmail) {
+        this.userEmail = userEmail;
     }
 }

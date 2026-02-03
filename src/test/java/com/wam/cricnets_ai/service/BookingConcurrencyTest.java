@@ -49,7 +49,7 @@ class BookingConcurrencyTest {
             executorService.submit(() -> {
                 try {
                     latch.await();
-                    bookingService.createBooking(startTime, BallType.LEATHER, "Player " + index);
+                    bookingService.createBooking(startTime, BallType.LEATHER, "player" + index + "@example.com");
                     successCount.incrementAndGet();
                 } catch (Exception e) {
                     failureCount.incrementAndGet();

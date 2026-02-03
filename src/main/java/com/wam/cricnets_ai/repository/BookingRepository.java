@@ -15,22 +15,18 @@ import java.util.List;
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT b FROM Booking b WHERE b.startTime < :endTime AND b.endTime > :startTime AND " +
-           "((:ballType IN (com.wam.cricnets_ai.model.BallType.TENNIS_MACHINE, com.wam.cricnets_ai.model.BallType.LEATHER_MACHINE) AND b.ballType = :ballType) OR " +
-           "(:ballType NOT IN (com.wam.cricnets_ai.model.BallType.TENNIS_MACHINE, com.wam.cricnets_ai.model.BallType.LEATHER_MACHINE) AND b.ballType NOT IN (com.wam.cricnets_ai.model.BallType.TENNIS_MACHINE, com.wam.cricnets_ai.model.BallType.LEATHER_MACHINE)))")
+    @Query("SELECT b FROM Booking b WHERE b.startTime < :endTime AND b.endTime > :startTime AND b.ballType = :ballType")
     List<Booking> findOverlappingBookingsForUpdate(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime, @Param("ballType") com.wam.cricnets_ai.model.BallType ballType);
 
-    @Query("SELECT b FROM Booking b WHERE b.startTime < :endTime AND b.endTime > :startTime AND " +
-           "((:ballType IN (com.wam.cricnets_ai.model.BallType.TENNIS_MACHINE, com.wam.cricnets_ai.model.BallType.LEATHER_MACHINE) AND b.ballType = :ballType) OR " +
-           "(:ballType NOT IN (com.wam.cricnets_ai.model.BallType.TENNIS_MACHINE, com.wam.cricnets_ai.model.BallType.LEATHER_MACHINE) AND b.ballType NOT IN (com.wam.cricnets_ai.model.BallType.TENNIS_MACHINE, com.wam.cricnets_ai.model.BallType.LEATHER_MACHINE)))")
+    @Query("SELECT b FROM Booking b WHERE b.startTime < :endTime AND b.endTime > :startTime AND b.ballType = :ballType")
     List<Booking> findOverlappingBookings(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime, @Param("ballType") com.wam.cricnets_ai.model.BallType ballType);
 
-    @Query("SELECT b FROM Booking b WHERE b.startTime >= :dayStart AND b.startTime < :dayEnd AND " +
-           "((:ballType IN (com.wam.cricnets_ai.model.BallType.TENNIS_MACHINE, com.wam.cricnets_ai.model.BallType.LEATHER_MACHINE) AND b.ballType = :ballType) OR " +
-           "(:ballType NOT IN (com.wam.cricnets_ai.model.BallType.TENNIS_MACHINE, com.wam.cricnets_ai.model.BallType.LEATHER_MACHINE) AND b.ballType NOT IN (com.wam.cricnets_ai.model.BallType.TENNIS_MACHINE, com.wam.cricnets_ai.model.BallType.LEATHER_MACHINE)))")
+    @Query("SELECT b FROM Booking b WHERE b.startTime >= :dayStart AND b.startTime < :dayEnd AND b.ballType = :ballType")
     List<Booking> findBookingsByDay(@Param("dayStart") LocalDateTime dayStart, @Param("dayEnd") LocalDateTime dayEnd, @Param("ballType") com.wam.cricnets_ai.model.BallType ballType);
 
-    List<Booking> findByPlayerNameIgnoreCase(String playerName);
+
+    @Query("SELECT b FROM Booking b WHERE b.userEmail = :email")
+    List<Booking> findByUserEmail(@Param("email") String email);
 
     List<Booking> findByStartTimeAfterOrderByStartTimeAsc(LocalDateTime now);
 }

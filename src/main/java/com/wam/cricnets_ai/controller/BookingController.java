@@ -4,6 +4,7 @@ import com.wam.cricnets_ai.model.BallType;
 import com.wam.cricnets_ai.model.Booking;
 import com.wam.cricnets_ai.service.BookingService;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -12,7 +13,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/bookings")
-@CrossOrigin(origins = "http://localhost:3000")
 public class BookingController {
 
     private final BookingService bookingService;
@@ -29,13 +29,17 @@ public class BookingController {
     }
 
     @PostMapping
-    public Booking bookSession(@RequestBody BookingRequest request) {
-        return bookingService.createBooking(request.startTime(), request.durationMinutes(), request.ballType(), request.playerName());
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
+    public Booking bookSession(@RequestBody BookingRequest request, java.security.Principal principal) {
+        String email = principal != null ? principal.getName() : null;
+        return bookingService.createBooking(request.startTime(), request.durationMinutes(), request.ballType(), email);
     }
 
     @PostMapping("/multi")
-    public List<Booking> bookMultipleSessions(@RequestBody MultiBookingRequest request) {
-        return bookingService.createMultiBooking(request.startTimes(), request.ballType(), request.playerName());
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
+    public List<Booking> bookMultipleSessions(@RequestBody MultiBookingRequest request, java.security.Principal principal) {
+        String email = principal != null ? principal.getName() : null;
+        return bookingService.createMultiBooking(request.startTimes(), request.ballType(), email);
     }
 
     @GetMapping
@@ -53,16 +57,18 @@ public class BookingController {
         bookingService.cancelBooking(id);
     }
 
-    @GetMapping("/player/{playerName}")
-    public List<Booking> getPlayerBookings(@PathVariable String playerName) {
-        return bookingService.getBookingsByPlayer(playerName);
+    @GetMapping("/mine")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN') or hasRole('SUPER_ADMIN')")
+    public List<Booking> getMyBookings(java.security.Principal principal) {
+        return bookingService.getBookingsByEmail(principal.getName());
     }
+
 
     @GetMapping("/upcoming")
     public List<Booking> getUpcomingBookings() {
         return bookingService.getUpcomingBookings();
     }
 
-    public record BookingRequest(LocalDateTime startTime, Integer durationMinutes, BallType ballType, String playerName) {}
-    public record MultiBookingRequest(List<LocalDateTime> startTimes, BallType ballType, String playerName) {}
+    public record BookingRequest(LocalDateTime startTime, Integer durationMinutes, BallType ballType) {}
+    public record MultiBookingRequest(List<LocalDateTime> startTimes, BallType ballType) {}
 }
