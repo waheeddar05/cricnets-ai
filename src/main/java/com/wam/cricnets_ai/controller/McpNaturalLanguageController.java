@@ -4,6 +4,7 @@ package com.wam.cricnets_ai.controller;
 import com.wam.cricnets_ai.mcp.NaturalLanguageMcpService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -22,6 +23,7 @@ public class McpNaturalLanguageController {
     public record InterpretRequest(String command, Boolean execute) {}
 
     @PostMapping("/interpret")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<?> interpret(@RequestBody InterpretRequest request) {
         if (request == null || request.command == null || request.command.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Missing 'command'"));

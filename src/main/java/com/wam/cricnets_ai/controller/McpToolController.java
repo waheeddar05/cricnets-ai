@@ -4,6 +4,7 @@ package com.wam.cricnets_ai.controller;
 import com.wam.cricnets_ai.mcp.ToolRegistry;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,11 +22,13 @@ public class McpToolController {
     }
 
     @GetMapping("/tools")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<List<String>> listTools() {
         return ResponseEntity.ok(invokerService.listToolNames());
     }
 
     @PostMapping("/tools/{name}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<Object> callTool(@PathVariable("name") String name,
                                            @RequestBody(required = false) Map<String, Object> args) {
         Object result = invokerService.callTool(name, args == null ? Map.of() : args);

@@ -43,16 +43,19 @@ public class BookingController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public List<Booking> getAllBookings() {
         return bookingService.getAllBookings();
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Booking getBooking(@PathVariable Long id) {
         return bookingService.getBookingById(id);
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public void cancelBooking(@PathVariable Long id) {
         bookingService.cancelBooking(id);
     }
