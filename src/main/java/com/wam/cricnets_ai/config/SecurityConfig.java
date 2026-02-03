@@ -37,6 +37,7 @@ public class SecurityConfig {
                     "/actuator/health/**",
                     "/actuator/**"
                 ).permitAll()
+                .requestMatchers("/mcp-client/**").authenticated()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session

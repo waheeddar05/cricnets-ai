@@ -12,7 +12,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping(path = "/mcp-client", produces = MediaType.APPLICATION_JSON_VALUE)
-@CrossOrigin(origins = "http://localhost:3000")
 public class McpToolController {
 
     private final ToolRegistry invokerService;
@@ -22,13 +21,13 @@ public class McpToolController {
     }
 
     @GetMapping("/tools")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<List<String>> listTools() {
         return ResponseEntity.ok(invokerService.listToolNames());
     }
 
     @PostMapping("/tools/{name}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<Object> callTool(@PathVariable("name") String name,
                                            @RequestBody(required = false) Map<String, Object> args) {
         Object result = invokerService.callTool(name, args == null ? Map.of() : args);

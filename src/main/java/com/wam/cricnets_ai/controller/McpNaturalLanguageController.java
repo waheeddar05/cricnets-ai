@@ -11,7 +11,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping(path = "/mcp-client", produces = MediaType.APPLICATION_JSON_VALUE)
-@CrossOrigin(origins = "http://localhost:3000")
 public class McpNaturalLanguageController {
 
     private final NaturalLanguageMcpService nlService;
@@ -23,7 +22,7 @@ public class McpNaturalLanguageController {
     public record InterpretRequest(String command, Boolean execute) {}
 
     @PostMapping("/interpret")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<?> interpret(@RequestBody InterpretRequest request) {
         if (request == null || request.command == null || request.command.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Missing 'command'"));

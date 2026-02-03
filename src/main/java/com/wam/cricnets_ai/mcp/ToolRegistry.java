@@ -88,25 +88,22 @@ public class ToolRegistry {
     private Object[] resolveArguments(Method m, Map<String, Object> args) {
         Parameter[] params = m.getParameters();
         Object[] resolved = new Object[params.length];
-
-        // LinkedHashMap to maintain order if possible, though args is usually a HashMap
-        List<Object> argsList = new ArrayList<>(args.values());
-
+        Map<String, Object> lowerArgs = new HashMap<>();
+        args.forEach((k, v) -> lowerArgs.put(k.toLowerCase(Locale.ROOT), v));
+        
         for (int i = 0; i < params.length; i++) {
             Parameter p = params[i];
             String name = p.getName();
             Class<?> type = p.getType();
-            Object raw = args.get(name);
+            Object raw = lowerArgs.get(name.toLowerCase(Locale.ROOT));
 
             if (raw == null) {
-                // Try lowercase
-                raw = args.get(name.toLowerCase(Locale.ROOT));
-            }
-
-            if (raw == null && i < argsList.size()) {
-                // Fallback to positional matching if names didn't match and we have enough arguments
-                // This helps when -parameters is missing and we get arg0, arg1, etc.
-                raw = argsList.get(i);
+                // Positional fallback
+                List<String> sortedKeys = new ArrayList<>(args.keySet());
+                Collections.sort(sortedKeys);
+                if (i < sortedKeys.size()) {
+                    raw = args.get(sortedKeys.get(i));
+                }
             }
 
             resolved[i] = convert(raw, type);

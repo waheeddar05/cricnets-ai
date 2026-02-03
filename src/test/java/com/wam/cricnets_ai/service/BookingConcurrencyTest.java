@@ -35,7 +35,7 @@ class BookingConcurrencyTest {
         bookingRepository.deleteAll();
         
         // Pre-create the lock to avoid race on insert
-        bookingLockRepository.saveAndFlush(new com.wam.cricnets_ai.model.BookingLock("CRICNETS_LOCK"));
+        bookingLockRepository.saveAndFlush(new com.wam.cricnets_ai.model.BookingLock("GENERAL_LOCK"));
 
         LocalDateTime startTime = LocalDate.now().plusYears(1).atTime(14, 0);
         int threads = 10;
