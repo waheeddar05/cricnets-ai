@@ -18,22 +18,27 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ToolRegistry {
 
     private final BookingMcpTools bookingMcpTools;
+    private final AdminMcpTools adminMcpTools;
     private final Map<String, Method> tools = new ConcurrentHashMap<>();
     private final Map<String, ToolSpec> specs = new ConcurrentHashMap<>();
+    private final Map<String, Object> toolInstances = new ConcurrentHashMap<>();
 
-    public ToolRegistry(BookingMcpTools bookingMcpTools) {
+    public ToolRegistry(BookingMcpTools bookingMcpTools, AdminMcpTools adminMcpTools) {
         this.bookingMcpTools = bookingMcpTools;
-        registerTools(bookingMcpTools.getClass());
+        this.adminMcpTools = adminMcpTools;
+        registerTools(bookingMcpTools);
+        registerTools(adminMcpTools);
     }
 
-    private void registerTools(Class<?> clazz) {
-        Class<?> userClass = ClassUtils.getUserClass(clazz);
+    private void registerTools(Object instance) {
+        Class<?> userClass = ClassUtils.getUserClass(instance.getClass());
         for (Method m : userClass.getDeclaredMethods()) {
             McpTool ann = m.getAnnotation(McpTool.class);
             if (ann != null) {
                 m.setAccessible(true);
                 tools.put(ann.name(), m);
                 specs.put(ann.name(), toSpec(ann, m));
+                toolInstances.put(ann.name(), instance);
             }
         }
     }
@@ -41,14 +46,8 @@ public class ToolRegistry {
     private ToolSpec toSpec(McpTool ann, Method method) {
         List<ParamSpec> params = new ArrayList<>();
         Parameter[] methodParams = method.getParameters();
-        for (int i = 0; i < methodParams.length; i++) {
-            Parameter p = methodParams[i];
+        for (Parameter p : methodParams) {
             String name = p.getName();
-            if (name.startsWith("arg")) {
-                // If we have generic names, try to provide a better one based on common patterns
-                // or just rely on the description to guide the AI if we can't do better.
-                // However, the best is to just tell the AI to use 'date' if it's a LocalDate etc.
-            }
             params.add(new ParamSpec(name, p.getType().getSimpleName()));
         }
         return new ToolSpec(ann.name(), ann.description(), params);
@@ -73,7 +72,8 @@ public class ToolRegistry {
         }
         try {
             Object[] resolved = resolveArguments(m, args == null ? Map.of() : args);
-            return m.invoke(bookingMcpTools, resolved);
+            Object instance = toolInstances.get(toolName);
+            return m.invoke(instance, resolved);
         } catch (InvocationTargetException e) {
             Throwable cause = e.getTargetException();
             if (cause instanceof RuntimeException re) {

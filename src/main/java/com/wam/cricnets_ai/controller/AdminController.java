@@ -2,10 +2,13 @@ package com.wam.cricnets_ai.controller;
 
 import com.wam.cricnets_ai.model.Role;
 import com.wam.cricnets_ai.model.User;
+import com.wam.cricnets_ai.repository.BookingRepository;
 import com.wam.cricnets_ai.repository.UserRepository;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -14,15 +17,39 @@ import java.util.Map;
 public class AdminController {
 
     private final UserRepository userRepository;
+    private final BookingRepository bookingRepository;
 
-    public AdminController(UserRepository userRepository) {
+    public AdminController(UserRepository userRepository, BookingRepository bookingRepository) {
         this.userRepository = userRepository;
+        this.bookingRepository = bookingRepository;
     }
 
     @GetMapping("/users")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     public List<User> getAllUsers() {
         return userRepository.findAll();
+    }
+
+    @GetMapping("/users/search")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    public List<User> searchUsers(@RequestParam String query) {
+        return userRepository.findByNameContainingIgnoreCaseOrEmailContainingIgnoreCase(query, query);
+    }
+
+    @DeleteMapping("/users/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public void deleteUser(@PathVariable Long id) {
+        userRepository.deleteById(id);
+    }
+
+    @GetMapping("/stats")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    public Map<String, Object> getStats() {
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalUsers", userRepository.count());
+        stats.put("totalBookings", bookingRepository.count());
+        stats.put("upcomingBookings", bookingRepository.findByStartTimeAfterOrderByStartTimeAsc(LocalDateTime.now()).size());
+        return stats;
     }
 
     @PostMapping("/users/{id}/role")

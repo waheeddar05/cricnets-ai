@@ -104,6 +104,7 @@ public class NaturalLanguageMcpService {
         headers.setBearerAuth(openAiApiKey);
 
         HttpEntity<Map<String, Object>> req = new HttpEntity<>(body, headers);
+        @SuppressWarnings("unchecked")
         Map<String, Object> resp = restTemplate.postForObject(url, req, Map.class);
         if (resp == null) throw new IllegalStateException("OpenAI response was null");
         List<?> choices = (List<?>) resp.get("choices");
