@@ -10,6 +10,7 @@ import java.time.LocalTime;
 public class BookingConfig {
 
     private int slotDurationMinutes = 30;
+    private int operatorCount = 2;
     private BusinessHours businessHours = new BusinessHours();
 
     public int getSlotDurationMinutes() {
@@ -18,6 +19,14 @@ public class BookingConfig {
 
     public void setSlotDurationMinutes(int slotDurationMinutes) {
         this.slotDurationMinutes = slotDurationMinutes;
+    }
+
+    public int getOperatorCount() {
+        return operatorCount;
+    }
+
+    public void setOperatorCount(int operatorCount) {
+        this.operatorCount = operatorCount;
     }
 
     public BusinessHours getBusinessHours() {

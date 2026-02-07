@@ -1,6 +1,6 @@
 package com.wam.cricnets_ai.mcp;
  
-import com.wam.cricnets_ai.model.BallType;
+import com.wam.cricnets_ai.model.*;
 import com.wam.cricnets_ai.repository.BookingRepository;
 import com.wam.cricnets_ai.repository.SystemConfigRepository;
 import com.wam.cricnets_ai.repository.UserRepository;
@@ -35,7 +35,7 @@ class ToolRegistryTest {
         systemConfigRepository = Mockito.mock(SystemConfigRepository.class);
         
         bookingMcpTools = new BookingMcpTools(bookingService);
-        adminMcpTools = new AdminMcpTools(userRepository, bookingRepository, systemConfigRepository);
+        adminMcpTools = new AdminMcpTools(userRepository, bookingRepository, systemConfigRepository, bookingService);
         
         registry = new ToolRegistry(bookingMcpTools, adminMcpTools);
     }
@@ -54,18 +54,18 @@ class ToolRegistryTest {
     @Test
     void testCallToolWithDateString() {
         LocalDate date = LocalDate.of(2026, 1, 25);
-        registry.callTool("get_available_slots", Map.of("date", "2026-01-25", "ballType", "TENNIS"));
+        registry.callTool("get_available_slots", Map.of("date", "2026-01-25", "wicketType", "INDOOR_ASTRO_TURF"));
 
-        Mockito.verify(bookingService).getSlotsForDay(eq(date), eq(BallType.TENNIS));
+        Mockito.verify(bookingService).getSlotsForDay(eq(date), eq(WicketType.INDOOR_ASTRO_TURF));
     }
 
     @Test
     void testCallToolWithGenericArgName() {
         LocalDate date = LocalDate.of(2026, 1, 25);
         // "arg0" is a common default if -parameters is missing
-        registry.callTool("get_available_slots", Map.of("arg0", "2026-01-25", "arg1", "TENNIS"));
+        registry.callTool("get_available_slots", Map.of("arg0", "2026-01-25", "arg1", "INDOOR_ASTRO_TURF"));
 
-        Mockito.verify(bookingService).getSlotsForDay(eq(date), eq(BallType.TENNIS));
+        Mockito.verify(bookingService).getSlotsForDay(eq(date), eq(WicketType.INDOOR_ASTRO_TURF));
     }
 
     @Test

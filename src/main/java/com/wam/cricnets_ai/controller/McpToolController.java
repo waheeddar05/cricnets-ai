@@ -21,13 +21,11 @@ public class McpToolController {
     }
 
     @GetMapping("/tools")
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<List<String>> listTools() {
         return ResponseEntity.ok(invokerService.listToolNames());
     }
 
     @PostMapping("/tools/{name}")
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<Object> callTool(@PathVariable("name") String name,
                                            @RequestBody(required = false) Map<String, Object> args) {
         Object result = invokerService.callTool(name, args == null ? Map.of() : args);

@@ -25,8 +25,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            .csrf(csrf -> csrf.disable())
             .cors(Customizer.withDefaults())
-            .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/bookings/slots", "/api/bookings/upcoming").permitAll()
@@ -37,7 +37,7 @@ public class SecurityConfig {
                     "/actuator/health/**",
                     "/actuator/**"
                 ).permitAll()
-                .requestMatchers("/mcp-client/**").authenticated()
+                .requestMatchers("/mcp-client/**").hasAnyRole("USER", "ADMIN", "SUPER_ADMIN")
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session

@@ -22,7 +22,6 @@ public class McpNaturalLanguageController {
     public record InterpretRequest(String command, Boolean execute) {}
 
     @PostMapping("/interpret")
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<?> interpret(@RequestBody InterpretRequest request) {
         if (request == null || request.command == null || request.command.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Missing 'command'"));

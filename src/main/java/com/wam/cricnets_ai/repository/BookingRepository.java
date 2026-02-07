@@ -15,14 +15,17 @@ import java.util.List;
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT b FROM Booking b WHERE b.startTime < :endTime AND b.endTime > :startTime AND b.ballType = :ballType")
-    List<Booking> findOverlappingBookingsForUpdate(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime, @Param("ballType") com.wam.cricnets_ai.model.BallType ballType);
+    @Query("SELECT b FROM Booking b WHERE b.startTime < :endTime AND b.endTime > :startTime AND b.wicketType = :wicketType AND b.status != 'CANCELLED'")
+    List<Booking> findOverlappingBookingsForUpdate(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime, @Param("wicketType") com.wam.cricnets_ai.model.WicketType wicketType);
 
-    @Query("SELECT b FROM Booking b WHERE b.startTime < :endTime AND b.endTime > :startTime AND b.ballType = :ballType")
-    List<Booking> findOverlappingBookings(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime, @Param("ballType") com.wam.cricnets_ai.model.BallType ballType);
+    @Query("SELECT b FROM Booking b WHERE b.startTime < :endTime AND b.endTime > :startTime AND b.wicketType = :wicketType AND b.status != 'CANCELLED'")
+    List<Booking> findOverlappingBookings(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime, @Param("wicketType") com.wam.cricnets_ai.model.WicketType wicketType);
 
-    @Query("SELECT b FROM Booking b WHERE b.startTime >= :dayStart AND b.startTime < :dayEnd AND b.ballType = :ballType")
-    List<Booking> findBookingsByDay(@Param("dayStart") LocalDateTime dayStart, @Param("dayEnd") LocalDateTime dayEnd, @Param("ballType") com.wam.cricnets_ai.model.BallType ballType);
+    @Query("SELECT b FROM Booking b WHERE b.startTime < :endTime AND b.endTime > :startTime AND b.status != 'CANCELLED'")
+    List<Booking> findAllOverlappingBookings(@Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
+
+    @Query("SELECT b FROM Booking b WHERE b.startTime >= :dayStart AND b.startTime < :dayEnd AND b.wicketType = :wicketType AND b.status != 'CANCELLED'")
+    List<Booking> findBookingsByDay(@Param("dayStart") LocalDateTime dayStart, @Param("dayEnd") LocalDateTime dayEnd, @Param("wicketType") com.wam.cricnets_ai.model.WicketType wicketType);
 
 
     @Query("SELECT b FROM Booking b WHERE b.userEmail = :email")

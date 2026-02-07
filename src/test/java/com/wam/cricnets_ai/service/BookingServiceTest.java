@@ -1,10 +1,7 @@
 package com.wam.cricnets_ai.service;
 
 import com.wam.cricnets_ai.config.BookingConfig;
-import com.wam.cricnets_ai.model.BallType;
-import com.wam.cricnets_ai.model.Booking;
-import com.wam.cricnets_ai.model.BookingLock;
-import com.wam.cricnets_ai.model.SystemConfig;
+import com.wam.cricnets_ai.model.*;
 import com.wam.cricnets_ai.repository.BookingLockRepository;
 import com.wam.cricnets_ai.repository.BookingRepository;
 import com.wam.cricnets_ai.repository.SystemConfigRepository;
@@ -61,40 +58,50 @@ class BookingServiceTest {
                 .thenReturn(Optional.of(new SystemConfig("slot_duration_minutes", "60")));
         
         LocalDateTime startTime = LocalDate.now().plusDays(1).atTime(10, 0);
+        String userEmail = "john@example.com";
+        when(userRepository.findByEmail(userEmail)).thenReturn(Optional.of(new com.wam.cricnets_ai.model.User(userEmail, "John", null, com.wam.cricnets_ai.model.Role.USER)));
         when(bookingRepository.findOverlappingBookings(any(), any(), any())).thenReturn(Collections.emptyList());
         when(bookingRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         // This should now succeed with 60 min duration (default)
-        Booking booking = bookingService.createBooking(startTime, null, BallType.TENNIS_MACHINE, "john@example.com");
+        Booking booking = bookingService.createBooking(startTime, null, BallType.TENNIS_MACHINE, userEmail);
 
         assertNotNull(booking);
         assertEquals(startTime.plusMinutes(60), booking.getEndTime());
         
         // This should fail if we try to book 30 mins because it's not a multiple of 60
         assertThrows(IllegalArgumentException.class, () -> 
-            bookingService.createBooking(startTime, 30, BallType.TENNIS_MACHINE, "john@example.com"));
+            bookingService.createBooking(startTime, 30, BallType.TENNIS_MACHINE, userEmail));
     }
 
     @Test
     void testCreateBooking_Success() {
         LocalDateTime startTime = LocalDate.now().plusDays(1).atTime(10, 0);
+        String userEmail = "john@example.com";
+        String userName = "John Doe";
+        com.wam.cricnets_ai.model.User user = new com.wam.cricnets_ai.model.User(userEmail, userName, null, com.wam.cricnets_ai.model.Role.USER);
+        
+        when(userRepository.findByEmail(userEmail)).thenReturn(Optional.of(user));
         when(bookingRepository.findOverlappingBookings(any(), any(), any())).thenReturn(Collections.emptyList());
         when(bookingRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Booking booking = bookingService.createBooking(startTime, BallType.TENNIS_MACHINE, "john@example.com");
+        Booking booking = bookingService.createBooking(startTime, BallType.TENNIS_MACHINE, userEmail);
 
         assertNotNull(booking);
-        assertEquals("john@example.com", booking.getUserEmail());
+        assertEquals(userEmail, booking.getUserEmail());
+        assertEquals(userName, booking.getPlayerName());
         verify(bookingRepository).save(any());
     }
 
     @Test
     void testCreateBooking_MultiSlot_Success() {
         LocalDateTime startTime = LocalDate.now().plusDays(1).atTime(10, 0);
+        String userEmail = "john@example.com";
+        when(userRepository.findByEmail(userEmail)).thenReturn(Optional.of(new com.wam.cricnets_ai.model.User(userEmail, "John", null, com.wam.cricnets_ai.model.Role.USER)));
         when(bookingRepository.findOverlappingBookings(any(), any(), any())).thenReturn(Collections.emptyList());
         when(bookingRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Booking booking = bookingService.createBooking(startTime, 60, BallType.TENNIS_MACHINE, "john@example.com");
+        Booking booking = bookingService.createBooking(startTime, 60, BallType.TENNIS_MACHINE, userEmail);
 
         assertNotNull(booking);
         assertEquals(startTime, booking.getStartTime());
@@ -109,7 +116,7 @@ class BookingServiceTest {
         Exception exception = assertThrows(RuntimeException.class, () -> 
             bookingService.createBooking(startTime, BallType.TENNIS_MACHINE, "jane@example.com"));
 
-        assertEquals("Session is already booked or unavailable.", exception.getMessage());
+        assertEquals("This wicket is already booked for the selected time.", exception.getMessage());
     }
 
     @Test
@@ -169,11 +176,11 @@ class BookingServiceTest {
     void testGetSlotsForDay() {
         LocalDate date = LocalDate.now().plusDays(1);
         LocalDateTime bookedSlot = date.atTime(10, 0);
-        Booking existing = new Booking(bookedSlot, bookedSlot.plusMinutes(30), BallType.LEATHER, "exist@example.com");
+        Booking existing = new Booking(bookedSlot, bookedSlot.plusMinutes(30), BallType.LEATHER, WicketType.INDOOR_ASTRO_TURF, MachineType.NONE, LeatherBallOption.NONE, false, "exist@example.com", "Existing Player");
         
         when(bookingRepository.findBookingsByDay(any(), any(), any())).thenReturn(List.of(existing));
 
-        List<BookingService.SlotStatus> slots = bookingService.getSlotsForDay(date, BallType.LEATHER);
+        List<BookingService.SlotStatus> slots = bookingService.getSlotsForDay(date, WicketType.INDOOR_ASTRO_TURF);
         
         // 7 AM to 11 PM = 16 hours = 32 slots
         assertEquals(32, slots.size());
@@ -215,15 +222,86 @@ class BookingServiceTest {
 
     @Test
     void testCancelBooking_Success() {
-        when(bookingRepository.existsById(1L)).thenReturn(true);
+        Booking booking = new Booking();
+        booking.setId(1L);
+        booking.setStatus(BookingStatus.PENDING);
+        when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
+        
         bookingService.cancelBooking(1L);
-        verify(bookingRepository).deleteById(1L);
+        
+        assertEquals(BookingStatus.CANCELLED, booking.getStatus());
+        verify(bookingRepository).save(booking);
     }
 
     @Test
     void testCancelBooking_NotFound() {
-        when(bookingRepository.existsById(1L)).thenReturn(false);
+        when(bookingRepository.findById(1L)).thenReturn(Optional.empty());
         assertThrows(RuntimeException.class, () -> bookingService.cancelBooking(1L));
+    }
+
+    @Test
+    void testMarkAsDone_Success() {
+        Booking booking = new Booking();
+        booking.setId(1L);
+        booking.setStatus(BookingStatus.PENDING);
+        when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
+        when(bookingRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Booking result = bookingService.markAsDone(1L);
+
+        assertEquals(BookingStatus.DONE, result.getStatus());
+        verify(bookingRepository).save(booking);
+    }
+
+    @Test
+    void testCreateBooking_LeatherMachineRequiresBallOption() {
+        LocalDateTime startTime = LocalDate.now().plusDays(1).atTime(10, 0);
+        
+        Exception exception = assertThrows(IllegalArgumentException.class, () -> 
+            bookingService.createBooking(startTime, 30, BallType.LEATHER, WicketType.INDOOR_ASTRO_TURF, 
+                MachineType.LEATHER_BALL_MACHINE, LeatherBallOption.NONE, false, "user@example.com"));
+
+        assertTrue(exception.getMessage().contains("Leather ball machine requires a ball option"));
+    }
+
+    @Test
+    void testCreateBooking_OperatorLimitReached_TennisMachineSelfOperated() {
+        LocalDateTime startTime = LocalDate.now().plusDays(1).atTime(10, 0);
+        LocalDateTime endTime = startTime.plusMinutes(30);
+        
+        // Mock 2 existing bookings with operators
+        Booking b1 = new Booking(startTime, endTime, BallType.LEATHER, WicketType.OUTDOOR_CEMENT, MachineType.LEATHER_BALL_MACHINE, LeatherBallOption.MACHINE_BALL, false, "u1@e.com", "P1");
+        Booking b2 = new Booking(startTime, endTime, BallType.LEATHER, WicketType.OUTDOOR_TURF, MachineType.LEATHER_BALL_MACHINE, LeatherBallOption.MACHINE_BALL, false, "u2@e.com", "P2");
+        
+        when(bookingRepository.findOverlappingBookings(any(), any(), eq(WicketType.INDOOR_ASTRO_TURF))).thenReturn(List.of());
+        when(bookingRepository.findAllOverlappingBookings(startTime, endTime)).thenReturn(List.of(b1, b2));
+        // Default operator count is 2
+        
+        when(bookingRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Booking result = bookingService.createBooking(startTime, 30, BallType.TENNIS, WicketType.INDOOR_ASTRO_TURF, 
+            MachineType.TENNIS_BALL_MACHINE, LeatherBallOption.NONE, false, "user@example.com");
+
+        assertNotNull(result);
+        assertTrue(result.isSelfOperated(), "Should automatically switch to self-operated if operators are busy");
+    }
+
+    @Test
+    void testCreateBooking_OperatorLimitReached_LeatherMachineFails() {
+        LocalDateTime startTime = LocalDate.now().plusDays(1).atTime(10, 0);
+        LocalDateTime endTime = startTime.plusMinutes(30);
+        
+        Booking b1 = new Booking(startTime, endTime, BallType.LEATHER, WicketType.OUTDOOR_CEMENT, MachineType.LEATHER_BALL_MACHINE, LeatherBallOption.MACHINE_BALL, false, "u1@e.com", "P1");
+        Booking b2 = new Booking(startTime, endTime, BallType.LEATHER, WicketType.OUTDOOR_TURF, MachineType.LEATHER_BALL_MACHINE, LeatherBallOption.MACHINE_BALL, false, "u2@e.com", "P2");
+        
+        when(bookingRepository.findOverlappingBookings(any(), any(), eq(WicketType.INDOOR_ASTRO_TURF))).thenReturn(List.of());
+        when(bookingRepository.findAllOverlappingBookings(startTime, endTime)).thenReturn(List.of(b1, b2));
+        
+        Exception exception = assertThrows(RuntimeException.class, () -> 
+            bookingService.createBooking(startTime, 30, BallType.LEATHER, WicketType.INDOOR_ASTRO_TURF, 
+                MachineType.LEATHER_BALL_MACHINE, LeatherBallOption.MACHINE_BALL, false, "user@example.com"));
+
+        assertEquals("No machine operators available for this time slot.", exception.getMessage());
     }
 
     @Test

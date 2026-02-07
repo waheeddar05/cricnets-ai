@@ -3,7 +3,9 @@ package com.wam.cricnets_ai.mcp;
 import com.wam.cricnets_ai.model.Role;
 import com.wam.cricnets_ai.model.SystemConfig;
 import com.wam.cricnets_ai.model.User;
+import com.wam.cricnets_ai.model.Booking;
 import com.wam.cricnets_ai.repository.BookingRepository;
+import com.wam.cricnets_ai.service.BookingService;
 import com.wam.cricnets_ai.repository.SystemConfigRepository;
 import com.wam.cricnets_ai.repository.UserRepository;
 import org.springaicommunity.mcp.annotation.McpTool;
@@ -20,11 +22,13 @@ public class AdminMcpTools {
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
     private final SystemConfigRepository systemConfigRepository;
+    private final BookingService bookingService;
 
-    public AdminMcpTools(UserRepository userRepository, BookingRepository bookingRepository, SystemConfigRepository systemConfigRepository) {
+    public AdminMcpTools(UserRepository userRepository, BookingRepository bookingRepository, SystemConfigRepository systemConfigRepository, BookingService bookingService) {
         this.userRepository = userRepository;
         this.bookingRepository = bookingRepository;
         this.systemConfigRepository = systemConfigRepository;
+        this.bookingService = bookingService;
     }
 
     @McpTool(name = "list_all_users", description = "List all registered users")
@@ -71,5 +75,15 @@ public class AdminMcpTools {
                 .orElse(new SystemConfig(key, value));
         config.setConfigValue(value);
         return systemConfigRepository.save(config);
+    }
+
+    @McpTool(name = "list_all_bookings", description = "List all bookings in the system")
+    public List<Booking> listAllBookings() {
+        return bookingService.getAllBookings();
+    }
+
+    @McpTool(name = "mark_booking_as_done", description = "Mark a booking as completed by its ID")
+    public Booking markBookingAsDone(Long bookingId) {
+        return bookingService.markAsDone(bookingId);
     }
 }
